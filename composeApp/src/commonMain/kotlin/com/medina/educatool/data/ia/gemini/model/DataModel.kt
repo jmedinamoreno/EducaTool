@@ -7,7 +7,8 @@ import kotlinx.serialization.Serializable
 data class GenerateContentRequest(
     @SerialName("system_instruction")
     val systemInstruction: SystemInstruction?=null,
-    val contents: List<Content>
+    val contents: List<Content>,
+    val generationConfig: GenerationConfig? = null
 )
 
 @Serializable
@@ -16,10 +17,30 @@ data class SystemInstruction(
 )
 
 @Serializable
+data class GenerationConfig(
+    @SerialName("response_mime_type")
+    val responseMimeType: String,
+    @SerialName("response_schema")
+    val responseSchema: JsonSchema? = null,
+    val temperature: Double? = null,
+)
+
+@Serializable
 data class Content(
     val role: String? = null,
     val parts: List<Part>
 )
+
+@Serializable
+class JsonSchema (
+    val type: Type,
+    val items: JsonSchema? = null,
+    val nullable: Boolean = false,
+    val properties: Map<String, JsonSchema>? = null,
+){
+    @Serializable
+    enum class Type { STRING, NUMBER, BOOLEAN, OBJECT, ARRAY }
+}
 
 @Serializable
 data class Part(

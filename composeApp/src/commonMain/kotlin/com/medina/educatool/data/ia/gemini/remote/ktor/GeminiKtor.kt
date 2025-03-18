@@ -7,9 +7,11 @@ import com.medina.educatool.data.ia.gemini.model.GenerateContentRequest
 import com.medina.educatool.data.ia.gemini.model.GenerateContentResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
+import io.ktor.client.plugins.timeout
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -43,6 +45,9 @@ class KtorGeminiDataSource(
         install(ContentNegotiation) {
             json(jsonDecoder)
         }
+        install(HttpTimeout){
+            requestTimeoutMillis = 180000
+        }
         install(Logging) {
             logger = object : io.ktor.client.plugins.logging.Logger{
                 override fun log(message: String) {
@@ -52,14 +57,14 @@ class KtorGeminiDataSource(
             level = LogLevel.ALL
         }
     }
-    override fun generateContent(request: GenerateContentRequest): Flow<GenerateContentResponse?> = flow<GenerateContentResponse?> {
+    override fun generateContent(model: String, request: GenerateContentRequest): Flow<GenerateContentResponse?> = flow<GenerateContentResponse?> {
         val response = httpClient.post {
             url {
                 protocol = URLProtocol.HTTPS
                 host = "generativelanguage.googleapis.com"
                 appendPathSegments(
                     "v1beta/models",
-                    "gemini-2.0-flash-lite:streamGenerateContent"
+                    "$model:generateContent"
                 )
                 parameters.append("key", apiKey)
             }
@@ -69,12 +74,14 @@ class KtorGeminiDataSource(
         emit(response)
     }.flowOn(dispatcher)
 
-    override fun streamGenerateContent(request: GenerateContentRequest): Flow<GenerateContentResponse?> = flow<GenerateContentResponse?> {
+    override fun streamGenerateContent(model: String, request: GenerateContentRequest): Flow<GenerateContentResponse?> = flow<GenerateContentResponse?> {
         val response: HttpResponse = httpClient.post{
             url {
                 protocol = URLProtocol.HTTPS
                 host = "generativelanguage.googleapis.com"
-                appendPathSegments("v1beta/models", "gemini-2.0-flash-lite:generateContent")
+                appendPathSegments(
+                    "v1beta/models",
+                    "$model:streamGenerateContent")
                 parameters.append("key", apiKey)
             }
             contentType(ContentType.Application.Json)
