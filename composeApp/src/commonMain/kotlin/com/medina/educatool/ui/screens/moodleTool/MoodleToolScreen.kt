@@ -1,16 +1,18 @@
 package com.medina.educatool.ui.screens.moodleTool
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.Button
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -18,15 +20,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.medina.educatool.ui.components.MultiLineInput
+import com.medina.educatool.ui.components.QuestionButton
+import com.medina.educatool.ui.components.QuestionList
 import com.medina.educatool.ui.screens.moodleTool.model.Question
 import com.medina.educatool.ui.screens.moodleTool.viewmodel.MoodleToolViewModel
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -35,135 +40,129 @@ fun MoodleToolScreen() {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle(
         lifecycleOwner = LocalLifecycleOwner.current
     )
-    Column {
+    viewModel.configureLocaleTexts(
+        loadingMessage = "Cargando...",
+        errorMessage = "Error",
+        successMessage = "Listo"
+    )
+    Column{
         Text(text = "#MOODLE_TOOL")
-        Row {
-            Column(modifier = Modifier.weight(0.5f)){
+        MoodleToolPanel(
+            questionList = uiState.questionList,
+            onGenerateXML = viewModel::generateXml,
+            onAddQuestion = viewModel::addQuestion,
+            onModifyQuestion = viewModel::modifyQuestion,
+            onDeleteQuestion = viewModel::deleteQuestion,
+            parseQuestions = viewModel::parseQuestions,
+            message = uiState.message,
+            onMessageClosed = viewModel::messageClosed
+        )
+    }
+}
+
+@Composable
+fun MoodleToolPanel(
+    questionList: List<Question> = emptyList(),
+    onGenerateXML: () -> Unit = {},
+    onAddQuestion: (Question) -> Unit = {},
+    onModifyQuestion: (old:Question, new:Question) -> Unit = {_,_->},
+    onDeleteQuestion: (Question) -> Unit = {},
+    parseQuestions: (rawText: String) -> Unit = {},
+    message: Pair<String,Boolean>? = null,
+    onMessageClosed: () -> Unit = {},
+) {
+    var showDialogImportQuestions by remember { mutableStateOf(false) }
+    if(message != null) {
+        Dialog(
+            onDismissRequest = onMessageClosed
+        ) {
+            Column(
+                modifier = Modifier
+                    .background(Color.White)
+                    .padding(10.dp)
+                ,
+            ) {
+                Text(text = message.first)
+                if (message.second) {
+                    LinearProgressIndicator()
+                }
+                QuestionButton(
+                    text = "Ok",
+                    onClick = onMessageClosed
+                )
+            }
+        }
+    }
+    if(showDialogImportQuestions) {
+        Dialog(
+            onDismissRequest = {
+                showDialogImportQuestions = false
+            },
+        ) {
+            Column(
+                modifier = Modifier
+                    .background(Color.White)
+                    .padding(10.dp)
+                ,
+            ) {
                 var rawQuestions by remember { mutableStateOf("") }
+                Text(text = "Pega tu texto aqui:")
                 MultiLineInput(
-                    modifier = Modifier.weight(1f).border(BorderStroke(1.dp,Color.Black)),
+                    modifier = Modifier.border(BorderStroke(1.dp, Color.Black)),
                     value = rawQuestions,
                     onValueChange = { rawQuestions = it },
                 )
-                Button(onClick = {
-                    viewModel.parseQuestions(rawQuestions)
-                }) {
-                    Text(
-                        text = "#ENVIAR"
-                    )
-                }
-            }
-            Column(modifier = Modifier.weight(0.5f)) {
-                if(uiState.isLoading){
-                    LinearProgressIndicator(
-                        color = Color.Blue
-                    )
-                }else{
-                    if(uiState.error != null){
-                        Text(
-                            text = uiState.error!!,
-                            color = Color.Red
-                        )
-                    }else {
-                        QuestionList(uiState.questionList){
-                            viewModel.deleteQuestion(it)
+                Row {
+                    QuestionButton(
+                        text = "Enviar",
+                        onClick = { parseQuestions(rawQuestions)
+                            showDialogImportQuestions = false
                         }
-                    }
+                    )
+                    Box(modifier = Modifier.weight(1f))
+                    QuestionButton(
+                        text = "Cancelar",
+                        onClick = {
+                            showDialogImportQuestions = false
+                        }
+                    )
                 }
             }
         }
     }
-}
-
-@Composable
-fun QuestionList(
-    questionList: List<Question> = emptyList(),
-    onDeleted: (Question) -> Unit = {}
-){
-    LazyColumn {
-        items(questionList) { item ->
-            Row {
-                Column {
-                    Text(text = item.summary)
-                    for (response in item.responses) {
-                        Text(
-                            text = response.text,
-                            color = if (response.correct) Color.Green else Color.Red
-                        )
-                    }
-                    Button(onClick = {
-                        onDeleted(item)
-                    }) {
-                        Text(
-                            text = "#ELIMINAR"
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Preview
-@Composable
-fun MoodleToolQuestionListPreview() {
-    QuestionList(
-        questionList = listOf(
-            Question(
-                summary = "Question 1",
-                responses = listOf(
-                    Question.Response(
-                        text = "Response 1",
-                        correct = true
-                    ),
-                    Question.Response(
-                        text = "Response 2",
-                        correct = false
-                    ),
-                    Question.Response(
-                        text = "Response 3",
-                        correct = false
-                    )
-                )
-            ),
-            Question(
-                summary = "Question 2",
-                responses = listOf(
-                    Question.Response(
-                        text = "Response 1",
-                        correct = false
-                    ),
-                    Question.Response(
-                        text = "Response 2",
-                        correct = false
-                    ),
-                    Question.Response(
-                        text = "Response 3",
-                        correct = true
-                    )
-                )
+    Column(modifier = Modifier.fillMaxHeight()) {
+        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            QuestionList(
+                modifier = Modifier.weight(1f, fill = false),
+                questionList = questionList,
+                onModified = onModifyQuestion,
+                onDeleted = onDeleteQuestion
             )
+            QuestionButton(
+                modifier = Modifier.align(Alignment.End),
+                text = "+ Nueva pregunta",
+                onClick = {
+                    onAddQuestion(
+                        Question(
+                            summary = "Nueva pregunta",
+                            listOf(
+                                Question.Response("Respuesta correcta", true),
+                                Question.Response("Respuesta incorrecta", false)
+                            )
+                        )
+                    )
+                }
+            )
+        }
+        QuestionButton(
+            modifier = Modifier.align(Alignment.End),
+            text = "Importar preguntas",
+            onClick = { showDialogImportQuestions = true }
         )
-    )
-}
-
-@Composable
-fun MultiLineInput(
-    value: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier) {
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Text
-            ),
-            maxLines = Int.MAX_VALUE,
+        QuestionButton(
+            modifier = Modifier.align(Alignment.End),
+            text = "Generar XML",
+            onClick = onGenerateXML
         )
     }
 }

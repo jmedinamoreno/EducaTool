@@ -3,10 +3,9 @@ package com.medina.educatool.ui.screens.moodleTool.model
 import kotlinx.serialization.Serializable
 
 data class MoodleToolState(
-    val isLoading: Boolean = false,
     val questionList: List<Question> = emptyList(),
     val xmlDataText: String? = null,
-    val error: String? = null
+    val message: Pair<String,Boolean>? = null,
 )
 
 @Serializable

@@ -32,9 +32,19 @@ class MoodleToolViewModel(
 
     private val questionList = mutableListOf<Question>()
 
+    private var loadingMessage = "..."
+    private var errorMessage = "..."
+    private var successMessage = "..."
+
+    fun configureLocaleTexts(loadingMessage: String, errorMessage: String, successMessage: String){
+        this.loadingMessage = loadingMessage
+        this.errorMessage = errorMessage
+        this.successMessage = successMessage
+    }
+
     fun parseQuestions(rawQuestions: String) {
         viewModelScope.launch { //Handles the screen loading
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(message = Pair(loadingMessage, true)) }
             val prompt = "Given the following questions for a test exam: $rawQuestions \n"+
                     "Write a JSON file with the following schema: $questionJsonSchema"
             ia.generateJsonContent(prompt, questionJsonSchema)
@@ -45,23 +55,38 @@ class MoodleToolViewModel(
                 .retry(3)
                 .catch { exception ->
                     AppLogger.e("error parsing", "Exception $exception")
-                    _uiState.update { it.copy(error = exception.message, isLoading = false) }
+                    _uiState.update { it.copy(message = Pair("$errorMessage $exception", false)) }
                 }
                 .collect { questionList ->
                     questionList.forEach { question -> addQuestion(question) }
-                    _uiState.update { it.copy(isLoading = false) }
+                    _uiState.update { it.copy(message = Pair(successMessage, false)) }
                 }
         }
     }
 
     fun addQuestion(question: Question){
         questionList.add(question)
-        _uiState.update { it.copy(questionList = questionList) }
+        _uiState.update { it.copy(questionList = questionList.toList()) }
     }
 
     fun deleteQuestion(question: Question){
         questionList.remove(question)
-        _uiState.update { it.copy(questionList = questionList) }
+        _uiState.update { it.copy(questionList = questionList.toList()) }
+    }
+
+    fun modifyQuestion(old:Question, new:Question){
+        val index = questionList.indexOf(old)
+        questionList.remove(old)
+        questionList.add(index, new)
+        _uiState.update { it.copy(questionList = questionList.toList()) }
+    }
+
+    fun generateXml(){
+        _uiState.update { it.copy(message = Pair("Esto aún no está implementado", false)) }
+    }
+
+    fun messageClosed(){
+        _uiState.update { it.copy(message = null) }
     }
 
     private val questionJsonSchema = IAJSONSchema(
