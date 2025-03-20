@@ -3,9 +3,12 @@ package com.medina.educatool.ui.screens.moodleTool.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medina.educatool.AppLogger
+import com.medina.educatool.File
 import com.medina.educatool.data.ia.gemini.model.JsonSchema
 import com.medina.educatool.data.ia.model.IAJSONSchema
 import com.medina.educatool.data.ia.repository.IAGeminiRepository
+import com.medina.educatool.data.xml.MoodleXML
+import com.medina.educatool.data.xml.model.MoodleQuestionnaire
 import com.medina.educatool.ui.screens.moodleTool.model.MoodleToolState
 import com.medina.educatool.ui.screens.moodleTool.model.Question
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,10 +21,10 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.encodeToJsonElement
 
 class MoodleToolViewModel(
-    private val ia: IAGeminiRepository
+    private val ia: IAGeminiRepository,
+    private val file: File
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MoodleToolState())
     val uiState: StateFlow<MoodleToolState> = _uiState.stateIn(
@@ -82,7 +85,23 @@ class MoodleToolViewModel(
     }
 
     fun generateXml(){
-        _uiState.update { it.copy(message = Pair("Esto aún no está implementado", false)) }
+        viewModelScope.launch {
+            _uiState.update { it.copy(message = Pair("Generando fichero...", true)) }
+            val textXML = MoodleXML().createXmlForQuestionary(questionList.toMoodleQuestionary())
+            file.saveFile("moodle.xml", textXML).collect{ result ->
+                when(result){
+                    is com.medina.educatool.data.files.FileSaveResult.Success -> {
+                        _uiState.update { it.copy(message = Pair("Fichero listo: ${result.path}", false)) }
+                    }
+                    is com.medina.educatool.data.files.FileSaveResult.Error -> {
+                        _uiState.update { it.copy(message = Pair("Error: ${result.exception}", false)) }
+                    }
+                    is com.medina.educatool.data.files.FileSaveResult.Canceled -> {
+                        _uiState.update { it.copy(message = Pair("Cancelado", false)) }
+                    }
+                }
+            }
+        }
     }
 
     fun messageClosed(){
@@ -116,6 +135,22 @@ class MoodleToolViewModel(
         ignoreUnknownKeys = true
         prettyPrint = true
         isLenient = true
+    }
+
+    private fun List<Question>.toMoodleQuestionary():MoodleQuestionnaire{
+        return MoodleQuestionnaire(
+            questions = this.map { question ->
+                MoodleQuestionnaire.Question(
+                    summary = question.summary,
+                    responses = question.responses.map { response ->
+                        MoodleQuestionnaire.Question.Response(
+                            text = response.text,
+                            correct = response.correct
+                        )
+                    }
+                )
+            }
+        )
     }
 
 }
