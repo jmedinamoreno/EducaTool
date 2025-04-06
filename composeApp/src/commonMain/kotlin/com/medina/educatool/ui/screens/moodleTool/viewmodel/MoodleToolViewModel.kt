@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.medina.educatool.AppLogger
 import com.medina.educatool.File
+import com.medina.educatool.Storage
 import com.medina.educatool.data.ia.gemini.model.JsonSchema
 import com.medina.educatool.data.ia.model.IAJSONSchema
 import com.medina.educatool.data.ia.repository.IAGeminiRepository
@@ -24,7 +25,8 @@ import kotlinx.serialization.json.Json
 
 class MoodleToolViewModel(
     private val ia: IAGeminiRepository,
-    private val file: File
+    private val file: File,
+    private val storage: Storage
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MoodleToolState())
     val uiState: StateFlow<MoodleToolState> = _uiState.stateIn(
@@ -38,33 +40,59 @@ class MoodleToolViewModel(
     private var loadingMessage = "..."
     private var errorMessage = "..."
     private var successMessage = "..."
+    private var noApiKeyMessage = "..."
 
-    fun configureLocaleTexts(loadingMessage: String, errorMessage: String, successMessage: String){
+    fun configureLocaleTexts(loadingMessage: String, errorMessage: String, successMessage: String, noApiKeyMessage: String){
         this.loadingMessage = loadingMessage
         this.errorMessage = errorMessage
         this.successMessage = successMessage
+        this.noApiKeyMessage = noApiKeyMessage
+    }
+
+    fun configureApiKey(apiKey: String){
+        viewModelScope.launch {
+            storage.saveData("iaApiKey", apiKey)
+            _uiState.update { it.copy(hasApiKey = true) }
+        }
     }
 
     fun parseQuestions(rawQuestions: String) {
-        viewModelScope.launch { //Handles the screen loading
-            _uiState.update { it.copy(message = Pair(loadingMessage, true)) }
-            val prompt = "Given the following questions for a test exam: $rawQuestions \n"+
-                    "Write a JSON file with the following schema: $questionJsonSchema"
-            ia.generateJsonContent(prompt, questionJsonSchema)
-                .map { content ->
-                    AppLogger.i("received content", "content $content")
-                    jsonDecoder.decodeFromString<List<Question>>(content ?: "")
-                }
-                .retry(3)
-                .catch { exception ->
-                    AppLogger.e("error parsing", "Exception $exception")
-                    _uiState.update { it.copy(message = Pair("$errorMessage $exception", false)) }
-                }
-                .collect { questionList ->
-                    questionList.forEach { question -> addQuestion(question) }
-                    _uiState.update { it.copy(message = Pair(successMessage, false)) }
-                }
+        viewModelScope.launch {
+            val currentIaApiKey = storage.retrieveData("iaApiKey")
+            if (currentIaApiKey != null) {
+                makeIARequest(rawQuestions, currentIaApiKey)
+            } else {
+                _uiState.update { it.copy(message = Pair(noApiKeyMessage, true)) }
+            }
         }
+    }
+
+    private suspend fun makeIARequest(rawQuestions: String, apiKey: String){
+        ia.configureApiKey(apiKey)
+        _uiState.update { it.copy(message = Pair(loadingMessage, true)) }
+        val prompt = "Given the following questions for a test exam: $rawQuestions \n" +
+                "Write a JSON file with the following schema: $questionJsonSchema"
+        ia.generateJsonContent(prompt, questionJsonSchema)
+            .map { content ->
+                AppLogger.i("received content", "content $content")
+                jsonDecoder.decodeFromString<List<Question>>(content ?: "")
+            }
+            .retry(3)
+            .catch { exception ->
+                AppLogger.e("error parsing", "Exception $exception")
+                _uiState.update {
+                    it.copy(
+                        message = Pair(
+                            "$errorMessage $exception",
+                            false
+                        )
+                    )
+                }
+            }
+            .collect { questionList ->
+                questionList.forEach { question -> addQuestion(question) }
+                _uiState.update { it.copy(message = Pair(successMessage, false)) }
+            }
     }
 
     fun addQuestion(question: Question){

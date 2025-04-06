@@ -3,16 +3,12 @@ package com.medina.educatool.ui.screens.moodleTool
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.LinearProgressIndicator
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -43,10 +39,11 @@ fun MoodleToolScreen() {
     viewModel.configureLocaleTexts(
         loadingMessage = "Cargando...",
         errorMessage = "Error",
-        successMessage = "Listo"
+        successMessage = "Listo",
+        noApiKeyMessage = "Para usar esta función necesitas configurar la API KEY de gemini"
     )
     Column{
-        Text(text = "#MOODLE_TOOL")
+        Text(text = "Educa Tool")
         MoodleToolPanel(
             questionList = uiState.questionList,
             onGenerateXML = viewModel::generateXml,
@@ -54,8 +51,10 @@ fun MoodleToolScreen() {
             onModifyQuestion = viewModel::modifyQuestion,
             onDeleteQuestion = viewModel::deleteQuestion,
             parseQuestions = viewModel::parseQuestions,
+            configureApiKey = viewModel::configureApiKey,
             message = uiState.message,
-            onMessageClosed = viewModel::messageClosed
+            onMessageClosed = viewModel::messageClosed,
+            hasApiKey = uiState.hasApiKey
         )
     }
 }
@@ -68,10 +67,13 @@ fun MoodleToolPanel(
     onModifyQuestion: (old:Question, new:Question) -> Unit = {_,_->},
     onDeleteQuestion: (Question) -> Unit = {},
     parseQuestions: (rawText: String) -> Unit = {},
+    configureApiKey: (newKey: String) -> Unit = {},
     message: Pair<String,Boolean>? = null,
     onMessageClosed: () -> Unit = {},
+    hasApiKey: Boolean = false,
 ) {
     var showDialogImportQuestions by remember { mutableStateOf(false) }
+    var showDialogConfigureApiKey by remember { mutableStateOf(false) }
     if(message != null) {
         Dialog(
             onDismissRequest = onMessageClosed
@@ -108,14 +110,15 @@ fun MoodleToolPanel(
                 var rawQuestions by remember { mutableStateOf("") }
                 Text(text = "Pega tu texto aqui:")
                 MultiLineInput(
-                    modifier = Modifier.border(BorderStroke(1.dp, Color.Black)),
+                    modifier = Modifier.border(BorderStroke(1.dp, Color.Black)).fillMaxHeight(0.8f),
                     value = rawQuestions,
                     onValueChange = { rawQuestions = it },
                 )
                 Row {
                     QuestionButton(
                         text = "Enviar",
-                        onClick = { parseQuestions(rawQuestions)
+                        onClick = {
+                            parseQuestions(rawQuestions)
                             showDialogImportQuestions = false
                         }
                     )
@@ -124,6 +127,45 @@ fun MoodleToolPanel(
                         text = "Cancelar",
                         onClick = {
                             showDialogImportQuestions = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+    if(showDialogConfigureApiKey) {
+        Dialog(
+            onDismissRequest = {
+                showDialogConfigureApiKey = false
+            },
+        ) {
+            Column(
+                modifier = Modifier
+                    .background(Color.White)
+                    .fillMaxHeight(0.8f)
+                    .padding(10.dp)
+                ,
+            ) {
+                var newApiKey by remember { mutableStateOf("") }
+                Text(text = "Para usar funciones de IA es necesario configurar tu API KEY de gemini:")
+                MultiLineInput(
+                    modifier = Modifier.border(BorderStroke(1.dp, Color.Black)),
+                    value = newApiKey,
+                    onValueChange = { newApiKey = it },
+                )
+                Row {
+                    QuestionButton(
+                        text = "Establecer ApiKey",
+                        onClick = {
+                            configureApiKey(newApiKey)
+                            showDialogConfigureApiKey = false
+                        }
+                    )
+                    Box(modifier = Modifier.weight(1f))
+                    QuestionButton(
+                        text = "Cancelar",
+                        onClick = {
+                            showDialogConfigureApiKey = false
                         }
                     )
                 }
@@ -154,11 +196,19 @@ fun MoodleToolPanel(
                 }
             )
         }
-        QuestionButton(
-            modifier = Modifier.align(Alignment.End),
-            text = "Importar preguntas",
-            onClick = { showDialogImportQuestions = true }
-        )
+        if(hasApiKey) {
+            QuestionButton(
+                modifier = Modifier.align(Alignment.End),
+                text = "Importar preguntas",
+                onClick = { showDialogImportQuestions = true }
+            )
+        }else{
+            QuestionButton(
+                modifier = Modifier.align(Alignment.End),
+                text = "Configurar API Key",
+                onClick = { showDialogConfigureApiKey = true }
+            )
+        }
         QuestionButton(
             modifier = Modifier.align(Alignment.End),
             text = "Generar XML",

@@ -6,6 +6,7 @@ data class MoodleToolState(
     val questionList: List<Question> = emptyList(),
     val xmlDataText: String? = null,
     val message: Pair<String,Boolean>? = null,
+    val hasApiKey: Boolean = true
 )
 
 @Serializable

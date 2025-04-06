@@ -2,7 +2,6 @@ package com.medina.educatool.data.ia.gemini.remote.ktor
 
 import com.medina.educatool.AppLogger
 import com.medina.educatool.data.ia.gemini.GeminiDataSource
-import com.medina.educatool.data.ia.gemini.apiKey
 import com.medina.educatool.data.ia.gemini.model.GenerateContentRequest
 import com.medina.educatool.data.ia.gemini.model.GenerateContentResponse
 import io.ktor.client.HttpClient
@@ -11,7 +10,6 @@ import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.plugins.timeout
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -56,6 +54,10 @@ class KtorGeminiDataSource(
             }
             level = LogLevel.ALL
         }
+    }
+    private var apiKey = ""
+    override fun configureApiKey(apiKey: String) {
+        this.apiKey = apiKey
     }
     override fun generateContent(model: String, request: GenerateContentRequest): Flow<GenerateContentResponse?> = flow<GenerateContentResponse?> {
         val response = httpClient.post {

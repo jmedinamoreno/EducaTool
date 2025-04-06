@@ -7,4 +7,5 @@ import kotlinx.coroutines.flow.Flow
 interface GeminiDataSource {
     fun generateContent(model: String, request: GenerateContentRequest): Flow<GenerateContentResponse?>
     fun streamGenerateContent(model: String, request: GenerateContentRequest): Flow<GenerateContentResponse?>
+    fun configureApiKey(apiKey: String)
 }

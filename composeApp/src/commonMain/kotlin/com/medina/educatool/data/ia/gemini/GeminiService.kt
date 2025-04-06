@@ -74,4 +74,6 @@ class GeminiService(
         }.catch {
             emit("Error: ${it.message}")
         }
+
+    fun configureApiKey(apiKey: String) = geminiDataSource.configureApiKey(apiKey)
 }
