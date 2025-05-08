@@ -40,7 +40,6 @@ fun MoodleToolScreen() {
         loadingMessage = "Cargando...",
         errorMessage = "Error",
         successMessage = "Listo",
-        noApiKeyMessage = "Para usar esta función necesitas configurar la API KEY de gemini"
     )
     Column{
         Text(text = "Educa Tool")
@@ -70,7 +69,7 @@ fun MoodleToolPanel(
     configureApiKey: (newKey: String) -> Unit = {},
     message: Pair<String,Boolean>? = null,
     onMessageClosed: () -> Unit = {},
-    hasApiKey: Boolean = false,
+    hasApiKey: Boolean? = null,
 ) {
     var showDialogImportQuestions by remember { mutableStateOf(false) }
     var showDialogConfigureApiKey by remember { mutableStateOf(false) }
@@ -96,82 +95,84 @@ fun MoodleToolPanel(
         }
     }
     if(showDialogImportQuestions) {
-        Dialog(
-            onDismissRequest = {
-                showDialogImportQuestions = false
-            },
-        ) {
-            Column(
-                modifier = Modifier
-                    .background(Color.White)
-                    .padding(10.dp)
-                ,
+        if(showDialogConfigureApiKey) {
+            Dialog(
+                onDismissRequest = {
+                    showDialogConfigureApiKey = false
+                },
             ) {
-                var rawQuestions by remember { mutableStateOf("") }
-                Text(text = "Pega tu texto aqui:")
-                MultiLineInput(
-                    modifier = Modifier.border(BorderStroke(1.dp, Color.Black)).fillMaxHeight(0.8f),
-                    value = rawQuestions,
-                    onValueChange = { rawQuestions = it },
-                )
-                Row {
-                    QuestionButton(
-                        text = "Enviar",
-                        onClick = {
-                            parseQuestions(rawQuestions)
-                            showDialogImportQuestions = false
-                        }
+                Column(
+                    modifier = Modifier
+                        .background(Color.White)
+                        .fillMaxHeight(0.8f)
+                        .padding(10.dp)
+                    ,
+                ) {
+                    var newApiKey by remember { mutableStateOf("") }
+                    Text(text = "Para usar funciones de IA es necesario configurar tu API KEY de gemini:")
+                    MultiLineInput(
+                        modifier = Modifier.border(BorderStroke(1.dp, Color.Black)),
+                        value = newApiKey,
+                        onValueChange = { newApiKey = it },
                     )
-                    Box(modifier = Modifier.weight(1f))
-                    QuestionButton(
-                        text = "Cancelar",
-                        onClick = {
-                            showDialogImportQuestions = false
-                        }
+                    Row {
+                        QuestionButton(
+                            text = "Establecer ApiKey",
+                            onClick = {
+                                configureApiKey(newApiKey)
+                                showDialogConfigureApiKey = false
+                            }
+                        )
+                        Box(modifier = Modifier.weight(1f))
+                        QuestionButton(
+                            text = "Cancelar",
+                            onClick = {
+                                showDialogConfigureApiKey = false
+                            }
+                        )
+                    }
+                }
+            }
+        }else {
+            Dialog(
+                onDismissRequest = {
+                    showDialogImportQuestions = false
+                },
+            ) {
+                Column(
+                    modifier = Modifier
+                        .background(Color.White)
+                        .padding(10.dp),
+                ) {
+                    var rawQuestions by remember { mutableStateOf("") }
+                    Text(text = "Pega tu texto aqui:")
+                    MultiLineInput(
+                        modifier = Modifier.border(BorderStroke(1.dp, Color.Black))
+                            .fillMaxHeight(0.8f),
+                        value = rawQuestions,
+                        onValueChange = { rawQuestions = it },
                     )
+                    Row {
+                        QuestionButton(
+                            text = "Enviar",
+                            onClick = {
+                                parseQuestions(rawQuestions)
+                                showDialogImportQuestions = false
+                            }
+                        )
+                        Box(modifier = Modifier.weight(1f))
+                        QuestionButton(
+                            text = "Cancelar",
+                            onClick = {
+                                showDialogImportQuestions = false
+                            }
+                        )
+                    }
                 }
             }
         }
     }
-    if(showDialogConfigureApiKey) {
-        Dialog(
-            onDismissRequest = {
-                showDialogConfigureApiKey = false
-            },
-        ) {
-            Column(
-                modifier = Modifier
-                    .background(Color.White)
-                    .fillMaxHeight(0.8f)
-                    .padding(10.dp)
-                ,
-            ) {
-                var newApiKey by remember { mutableStateOf("") }
-                Text(text = "Para usar funciones de IA es necesario configurar tu API KEY de gemini:")
-                MultiLineInput(
-                    modifier = Modifier.border(BorderStroke(1.dp, Color.Black)),
-                    value = newApiKey,
-                    onValueChange = { newApiKey = it },
-                )
-                Row {
-                    QuestionButton(
-                        text = "Establecer ApiKey",
-                        onClick = {
-                            configureApiKey(newApiKey)
-                            showDialogConfigureApiKey = false
-                        }
-                    )
-                    Box(modifier = Modifier.weight(1f))
-                    QuestionButton(
-                        text = "Cancelar",
-                        onClick = {
-                            showDialogConfigureApiKey = false
-                        }
-                    )
-                }
-            }
-        }
-    }
+
     Column(modifier = Modifier.fillMaxHeight()) {
         Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
             QuestionList(
@@ -196,19 +197,16 @@ fun MoodleToolPanel(
                 }
             )
         }
-        if(hasApiKey) {
-            QuestionButton(
-                modifier = Modifier.align(Alignment.End),
-                text = "Importar preguntas",
-                onClick = { showDialogImportQuestions = true }
-            )
-        }else{
-            QuestionButton(
-                modifier = Modifier.align(Alignment.End),
-                text = "Configurar API Key",
-                onClick = { showDialogConfigureApiKey = true }
-            )
-        }
+        QuestionButton(
+            modifier = Modifier.align(Alignment.End),
+            text = "Importar preguntas",
+            onClick = {
+                showDialogImportQuestions = true
+                if(hasApiKey != true) {
+                    showDialogConfigureApiKey = true
+                }
+            }
+        )
         QuestionButton(
             modifier = Modifier.align(Alignment.End),
             text = "Generar XML",

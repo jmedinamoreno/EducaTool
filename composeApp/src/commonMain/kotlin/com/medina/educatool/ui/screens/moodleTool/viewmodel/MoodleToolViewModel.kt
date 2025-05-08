@@ -40,13 +40,11 @@ class MoodleToolViewModel(
     private var loadingMessage = "..."
     private var errorMessage = "..."
     private var successMessage = "..."
-    private var noApiKeyMessage = "..."
 
-    fun configureLocaleTexts(loadingMessage: String, errorMessage: String, successMessage: String, noApiKeyMessage: String){
+    fun configureLocaleTexts(loadingMessage: String, errorMessage: String, successMessage: String){
         this.loadingMessage = loadingMessage
         this.errorMessage = errorMessage
         this.successMessage = successMessage
-        this.noApiKeyMessage = noApiKeyMessage
     }
 
     fun configureApiKey(apiKey: String){
@@ -62,7 +60,7 @@ class MoodleToolViewModel(
             if (currentIaApiKey != null) {
                 makeIARequest(rawQuestions, currentIaApiKey)
             } else {
-                _uiState.update { it.copy(message = Pair(noApiKeyMessage, true)) }
+                _uiState.update { it.copy(hasApiKey = false) }
             }
         }
     }
